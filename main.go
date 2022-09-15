@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"io"
+	"time"
 )
 
-// Написать очередь сообщений который кладет сообщения в очередь
+// Написать брокер сообщений который кладет сообщения в очередь
 // и из которого есть возможность читать эти сообщения.
 
 // Имплементировать следующий интерфейс:
@@ -25,34 +27,56 @@ type Queue interface {
 }
 
 type SomeBroker struct {
-	/*in  chan<- []byte
-	out <-chan []byte*/
-
 	dataCh chan []byte
-	errCh  chan error
+
+	closedBool bool
+}
+
+func NewSomeBroker() *SomeBroker {
+	return &SomeBroker{
+		dataCh: make(chan []byte),
+	}
 }
 
 func (b *SomeBroker) Write(data []byte) {
-	//b.in <- data
 	b.dataCh <- data
 }
 
 func (b *SomeBroker) Read() <-chan []byte {
-	//return b.out
 	return b.dataCh
 }
 
 func (b *SomeBroker) Wait() {
-	// ???
+	for !b.closedBool {
+	}
 }
 
 func (b *SomeBroker) Close() error {
 	defer close(b.dataCh)
 
-	err, ok := <-b.errCh
-	if !ok {
-		return err
-	}
+	b.closedBool = true
 
 	return nil
+}
+
+func main() {
+	sb := NewSomeBroker()
+
+	go func() {
+		time.Sleep(5 * time.Second)
+		sb.Close()
+	}()
+
+	go sb.Write([]byte("Str1"))
+	go sb.Write([]byte("Str2"))
+	go sb.Write([]byte("Str3"))
+	go sb.Write([]byte("Str4"))
+
+	go func() {
+		for v := range sb.Read() {
+			fmt.Println(string(v))
+		}
+	}()
+
+	sb.Wait()
 }
